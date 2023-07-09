@@ -1,20 +1,16 @@
-import dash
+from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
-import dash_core_components as dcc
-import dash_html_components as html
-from keras.layers import Dense, LSTM
-from keras.models import Sequential
-import numpy as np
 import pandas as pd
-from pandas import DataFrame, RangeIndex
 import plotly.graph_objs as go
-from sklearn.preprocessing import MinMaxScaler
 import yfinance as yf
+from sklearn.preprocessing import MinMaxScaler
+
+from stock_pred import *
 
 
 def load_live_cryptocurrency_data(names: list[str], currency: str) -> DataFrame:
     start = 0
-    df = DataFrame()
+    df = pd.DataFrame()
 
     for name in names:
         # download live cryptocurrency dataset
@@ -27,7 +23,7 @@ def load_live_cryptocurrency_data(names: list[str], currency: str) -> DataFrame:
 
         # set range numeric index
         end = start + data_count
-        data.index = RangeIndex(start, end, 1)
+        data.index = pd.RangeIndex(start, end, 1)
         start = end
 
         df = pd.concat([df, data])
@@ -35,71 +31,29 @@ def load_live_cryptocurrency_data(names: list[str], currency: str) -> DataFrame:
     return df
 
 
-app = dash.Dash()
+app = Dash()
 server = app.server
 
-scaler = MinMaxScaler(feature_range=(0, 1))
-
-df_nse = pd.read_csv("NSE-Tata-Global-Beverages-Limited.csv")
-
-df_nse["Date"] = pd.to_datetime(df_nse.Date, format="%Y-%m-%d")
-df_nse.index = df_nse["Date"]
-
-data = df_nse.sort_index(ascending=True, axis=0)
-new_data = pd.DataFrame(index=range(0, len(df_nse)), columns=["Date", "Close"])
-
-for i in range(0, len(data)):
-    new_data["Date"][i] = data["Date"][i]
-    new_data["Close"][i] = data["Close"][i]
-
-new_data.index = new_data.Date
-new_data.drop("Date", axis=1, inplace=True)
-
-dataset = new_data.values
-
-train = dataset[0:987, :]
-valid = dataset[987:, :]
+# build dataset
+# dataset = pd.read_csv("NSE-Tata-Global-Beverages-Limited.csv")
+dataset = load_live_cryptocurrency_data(["BTC"], "USD")
+dataset["Date"] = pd.to_datetime(dataset.Date, format="%Y-%m-%d")
+sorted_dataset = dataset.sort_values(by="Date", ascending=True, axis=0)
+filtered_dataset = pd.DataFrame(data=sorted_dataset.Close.to_numpy(), index=sorted_dataset.Date, columns=["Close"])
 
 scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(dataset)
+# normalize dataset and train lstm model
+x_train_data, y_train_data = normalize_dataset(filtered_dataset, scaler)
+model = train_lstm_model(x_train_data, y_train_data)
 
-x_train, y_train = [], []
+# predict close price
+inputs = get_sample_dataset(filtered_dataset, scaler)
+closing_price = predict_close_price(model, scaler, inputs)
 
-for i in range(60, len(train)):
-    x_train.append(scaled_data[i - 60 : i, 0])
-    y_train.append(scaled_data[i, 0])
+train_data, valid_data = split_dataset(filtered_dataset)
+print('total - train - valid', len(filtered_dataset), len(train_data), len(valid_data))
+valid_data["Predictions"] = closing_price
 
-x_train, y_train = np.array(x_train), np.array(y_train)
-
-x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-
-# lstm_model = load_model("saved_model.h5")
-lstm_model = Sequential()
-lstm_model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train.shape[1], 1)))
-lstm_model.add(LSTM(units=50))
-lstm_model.add(Dense(1))
-
-inputs = new_data[len(new_data) - len(valid) - 60 :].values
-inputs = inputs.reshape(-1, 1)
-inputs = scaler.transform(inputs)
-
-lstm_model.compile(loss="mean_squared_error", optimizer="adam")
-lstm_model.fit(x_train, y_train, epochs=1, batch_size=1, verbose="2")
-
-X_test = []
-for i in range(60, inputs.shape[0]):
-    X_test.append(inputs[i - 60 : i, 0])
-X_test = np.array(X_test)
-
-X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-closing_price = lstm_model.predict(X_test)
-closing_price = scaler.inverse_transform(closing_price)
-
-train = new_data[:987]
-valid = new_data[987:]
-valid["Predictions"] = closing_price
-
-# BTC-USD, ETH-USD, ADA-USD
 df = load_live_cryptocurrency_data(["BTC", "ETH", "ADA"], "USD")
 
 app.layout = html.Div(
@@ -113,11 +67,21 @@ app.layout = html.Div(
                     children=[
                         html.Div(
                             [
+                                dcc.Dropdown(
+                                    id="prediction-dropdown",
+                                    options=[
+                                        {"label": "Bitcoin", "value": "BTC"},
+                                        {"label": "Ethereum", "value": "ETH"},
+                                        {"label": "Cardano", "value": "ADA"},
+                                    ],
+                                    multi=False,
+                                    value=["BTC"],
+                                ),
                                 html.H2("Actual closing price", style={"textAlign": "center"}),
                                 dcc.Graph(
                                     id="Actual Data",
                                     figure={
-                                        "data": [go.Scatter(x=train.index, y=valid["Close"], mode="markers")],
+                                        "data": [go.Scatter(x=valid_data.index, y=valid_data["Close"], mode="markers")],
                                         "layout": go.Layout(
                                             title="scatter plot",
                                             xaxis={"title": "Date"},
@@ -129,7 +93,9 @@ app.layout = html.Div(
                                 dcc.Graph(
                                     id="Predicted Data",
                                     figure={
-                                        "data": [go.Scatter(x=valid.index, y=valid["Predictions"], mode="markers")],
+                                        "data": [
+                                            go.Scatter(x=valid_data.index, y=valid_data["Predictions"], mode="markers")
+                                        ],
                                         "layout": go.Layout(
                                             title="scatter plot",
                                             xaxis={"title": "Date"},
@@ -192,6 +158,8 @@ app.layout = html.Div(
     ]
 )
 
+# @app.callback([Output("Actual data", "figure"), Output("Predicted data", "figure")], [Input("prediction-dropdown", "value")])
+# def update_graph(selected_dropdown):
 
 @app.callback(Output("highlow", "figure"), [Input("my-dropdown", "value")])
 def update_graph(selected_dropdown):
