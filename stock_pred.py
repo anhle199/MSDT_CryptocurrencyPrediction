@@ -1,16 +1,35 @@
-from os.path import isfile
-
 from keras.layers import Dense, LSTM
-from keras.models import Sequential, load_model
+from keras.models import Sequential
 import numpy as np
-from pandas import DataFrame
+from pandas import DataFrame, RangeIndex, to_datetime
+import yfinance as yf
+
 
 TRAIN_SIZE = 0.8
+
+
+def build_model_filename(crypto_name: str) -> str:
+    return f'{crypto_name}_lstm_model.keras'
+
+
+def load_live_cryptocurrency_data(name: str, currency: str) -> DataFrame:
+    data = yf.download(tickers=f"{name}-{currency}", period="7d", interval="15m")
+    data.insert(0, "Date", data.index)
+    data.index = RangeIndex(0, len(data), 1)
+    return data
 
 
 def split_dataset(dataset, train_size=TRAIN_SIZE):
     index = int(len(dataset) * train_size)
     return dataset[:index], dataset[index:]
+
+
+def prepare_dataset(crypto_name: str) -> DataFrame:
+    dataset = load_live_cryptocurrency_data(crypto_name, 'USD')
+    dataset['Date'] = to_datetime(dataset.Date, format='%Y-%m-%d')
+    sorted_dataset = dataset.sort_values(by='Date', ascending=True, axis=0)
+    filtered_dataset = DataFrame(data=sorted_dataset.Close.to_numpy(), index=sorted_dataset.Date, columns=['Close'])
+    return filtered_dataset
 
 
 # return type: tuple(ndarray, ndarray)
@@ -33,11 +52,6 @@ def normalize_dataset(dataset: DataFrame, scaler):
 
 # return type: Sequential
 def train_lstm_model(x_train_data, y_train_data):
-    # model_filename = "lstm_model.h5"
-
-    # if isfile(model_filename):
-        # return load_model(model_filename)
-
     lstm_model = Sequential()
     lstm_model.add(LSTM(units=50, return_sequences=True, input_shape=(x_train_data.shape[1], 1)))
     lstm_model.add(LSTM(units=50))
@@ -46,7 +60,6 @@ def train_lstm_model(x_train_data, y_train_data):
     lstm_model.compile(loss="mean_squared_error", optimizer="adam")
     lstm_model.fit(x_train_data, y_train_data, epochs=1, batch_size=1, verbose="2")
 
-    # lstm_model.save(model_filename)
     return lstm_model
 
 
