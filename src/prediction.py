@@ -6,10 +6,11 @@ import yfinance as yf
 
 
 TRAIN_SIZE = 0.8
+DEFAULT_MODEL_DATASET_PATH = '../model_dataset/'
 
-
-def build_model_filename(crypto_name: str) -> str:
-    return f'{crypto_name}_lstm_model.keras'
+def build_model_filename(crypto_name: str, path = DEFAULT_MODEL_DATASET_PATH) -> str:
+    prefix = path if path.endswith('/') else path + '/'
+    return f'{prefix}{crypto_name}_lstm_model.keras'
 
 
 def load_live_cryptocurrency_data(name: str, currency: str) -> DataFrame:

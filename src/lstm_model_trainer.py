@@ -1,9 +1,12 @@
 from sklearn.preprocessing import MinMaxScaler
 
-from stock_pred import *
+from prediction import *
 
-def build_dataset_filename(crypto_name: str) -> str:
-    return f'{crypto_name}_dataset.csv'
+
+def build_dataset_filename(crypto_name: str, path: str = DEFAULT_MODEL_DATASET_PATH) -> str:
+    prefix = path if path.endswith('/') else path + '/'
+    return f'{prefix}{crypto_name}_dataset.csv'
+
 
 def train_model(dataset: DataFrame) -> Sequential:
     scaler = MinMaxScaler(feature_range=(0, 1))

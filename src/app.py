@@ -6,7 +6,7 @@ from keras.models import load_model
 import plotly.graph_objs as go
 from sklearn.preprocessing import MinMaxScaler
 
-from stock_pred import *
+from prediction import *
 
 
 CRYPTO_LIST = ['BTC', 'ETH', 'ADA']
