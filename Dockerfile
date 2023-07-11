@@ -6,9 +6,9 @@ COPY src src
 COPY model_dataset model_dataset
 COPY requirements.txt ./requirements.txt
 
-RUN pip install -r requirements.txt
-RUN pip install gunicorn==20.1.0
-RUN rm -rf ~/.cache/pip
+RUN pip install -r requirements.txt && \
+    pip install gunicorn==20.1.0 && \
+    rm -rf ~/.cache/pip
 
 ENV DASH_DEBUG_MODE False
 WORKDIR /app/src
