@@ -1,0 +1,9 @@
+version: "3"
+
+services:
+  crypto_prediction:
+    #platform: linux/x86_64
+    image: lhanh199/msdt_crypto_prediction
+    build:
+      context: .
+      dockerfile: ./Dockerfile

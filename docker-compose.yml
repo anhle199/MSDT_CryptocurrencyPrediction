@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  crypto_prediction:
+    image: lhanh199/msdt_crypto_prediction
+    container_name: crypto_prediction
+    restart: unless-stopped
+    #working_dir: /app/src
+    #command: ["gunicorn", "-b", "0.0.0.0:8050", "app:server"]
+    environment:
+      - DASH_DEBUG_MODE=False
+    ports:
+      - 8050:8050

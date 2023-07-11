@@ -8,13 +8,14 @@ import yfinance as yf
 TRAIN_SIZE = 0.8
 DEFAULT_MODEL_DATASET_PATH = '../model_dataset/'
 
-def build_model_filename(crypto_name: str, path = DEFAULT_MODEL_DATASET_PATH) -> str:
+
+def build_model_filename(crypto_name: str, path=DEFAULT_MODEL_DATASET_PATH) -> str:
     prefix = path if path.endswith('/') else path + '/'
     return f'{prefix}{crypto_name}_lstm_model.keras'
 
 
-def load_live_cryptocurrency_data(name: str, currency: str) -> DataFrame:
-    data = yf.download(tickers=f"{name}-{currency}", period="7d", interval="15m")
+def load_live_cryptocurrency_data(name: str, currency: str, period: str, interval: str) -> DataFrame:
+    data = yf.download(tickers=f"{name}-{currency}", period=period, interval=interval)
     data.insert(0, "Date", data.index)
     data.index = RangeIndex(0, len(data), 1)
     return data
@@ -25,8 +26,8 @@ def split_dataset(dataset, train_size=TRAIN_SIZE):
     return dataset[:index], dataset[index:]
 
 
-def prepare_dataset(crypto_name: str) -> DataFrame:
-    dataset = load_live_cryptocurrency_data(crypto_name, 'USD')
+def prepare_dataset(crypto_name: str, period: str, interval: str) -> DataFrame:
+    dataset = load_live_cryptocurrency_data(crypto_name, 'USD', period, interval)
     dataset['Date'] = to_datetime(dataset.Date, format='%Y-%m-%d')
     sorted_dataset = dataset.sort_values(by='Date', ascending=True, axis=0)
     filtered_dataset = DataFrame(data=sorted_dataset.Close.to_numpy(), index=sorted_dataset.Date, columns=['Close'])

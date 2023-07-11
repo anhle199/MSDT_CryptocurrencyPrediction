@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
         # prepare dataset
         print(f'>>> preparing dataset...')
-        dataset = prepare_dataset(crypto_name)
+        dataset = prepare_dataset(crypto_name, '7d', '15m')
         dataset.to_csv(build_dataset_filename(crypto_name))
         print(f'>>> prepared dataset successfully')
 
