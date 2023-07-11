@@ -35,7 +35,7 @@ def predict(name):
     return valid_data
 
 
-debug = False if os.environ["DASH_DEBUG_MODE"] == "False" else True
+debug = os.environ.get("DASH_DEBUG_MODE", "True") == "True"
 app = Dash()
 server = app.server
 
