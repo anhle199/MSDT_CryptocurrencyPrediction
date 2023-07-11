@@ -1,6 +1,6 @@
 FROM python:3.9-bullseye
 
-RUN apt install cuda-11-8
+RUN apt-get update && apt-get install cuda-11-8
 
 WORKDIR app
 
